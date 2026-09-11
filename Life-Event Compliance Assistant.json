@@ -1,0 +1,588 @@
+{
+  "name": "Life-Event Compliance Assistant",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Log a life event",
+        "formDescription": "Tell your compliance assistant what happened. It will build your paperwork checklist and set calendar reminders.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Event Type",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "started_freelancing"
+                  },
+                  {
+                    "option": "new_child"
+                  },
+                  {
+                    "option": "lost_job"
+                  },
+                  {
+                    "option": "moved_address"
+                  },
+                  {
+                    "option": "business_registered"
+                  },
+                  {
+                    "option": "family_member_deceased"
+                  },
+                  {
+                    "option": "visa_renewal"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Event Date",
+              "fieldType": "date",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Details",
+              "fieldType": "textarea",
+              "placeholder": "Optional: any extra context, reference numbers, names…"
+            }
+          ]
+        },
+        "options": {
+          "path": "life-event"
+        }
+      },
+      "id": "035f8d1e-89ee-4573-9681-110eb2642017",
+      "name": "Event Form",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.6,
+      "position": [
+        -48,
+        64
+      ],
+      "webhookId": "3be69788-9054-4d1b-ba23-8afd83d1a280"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=A user reported a life event via a form.\n\nEvent type selected: {{ $json[\"Event Type\"] }}\nEvent date: {{ $json[\"Event Date\"] }}\nAdditional details: {{ $json[\"Details\"] }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "You are a compliance-intake classifier for a personal administrative assistant. The user selected a canonical event_type from a fixed dropdown, so use the selected event_type as authoritative unless the details clearly contradict it. The canonical set is: started_freelancing, new_child, lost_job, moved_address, business_registered, family_member_deceased, visa_renewal. Set confidence to high, medium, or low. Put any dates you can identify into extracted_dates as ISO (YYYY-MM-DD) strings, and any institutions, reference numbers, or names into extracted_entities. Set needs_human_review to true only when the details clearly contradict the selected event_type or are self-contradictory. Return only the structured object."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "id": "e5139296-d631-4cc9-b0c0-c49e5ff50cf1",
+      "name": "Classify Event",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        176,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "fb649df0-5c5e-48f5-816a-b839fc840f4f",
+      "name": "Classifier Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        192,
+        288
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "8fopl4B8oYCYQKV2",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\"event_type\":\"started_freelancing\",\"confidence\":\"high\",\"extracted_dates\":[\"2026-09-01\"],\"extracted_entities\":[\"CNSS\"],\"needs_human_review\":false}"
+      },
+      "id": "bfb93fd7-4e48-4434-b013-ac9145e72b7b",
+      "name": "Classification Schema",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        320,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "or",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "needs-review",
+              "leftValue": "={{ $json.output.needs_human_review }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "low-confidence",
+              "leftValue": "={{ $json.output.confidence }}",
+              "rightValue": "low",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fc5a1497-b984-4fa6-814c-41ef169d5ef1",
+      "name": "Needs Human Review?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        560,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "ayarihaninhns@gmail.com",
+        "subject": "Compliance assistant needs your input on a reported event",
+        "emailType": "text",
+        "message": "=The assistant could not confidently process a reported life event.\n\nReported event type: {{ $(\"Event Form\").item.json[\"Event Type\"] }}\nEvent date: {{ $(\"Event Form\").item.json[\"Event Date\"] }}\nDetails: {{ $(\"Event Form\").item.json[\"Details\"] }}\n\nClassifier result: {{ JSON.stringify($json.output) }}\n\nPlease review and log the event manually.",
+        "options": {}
+      },
+      "id": "e951f965-4aae-4604-b766-cc7c8c5edb63",
+      "name": "Notify: Needs Your Input",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        752,
+        -32
+      ],
+      "webhookId": "1c5c4503-f141-4396-a5e2-f6d35ee68c50",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "2bMWS1ijwNThHdCZ",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Swappable jurisdiction pack (Step 2). Add EU/US packs as new keys later without touching logic.\nconst packs = {\n  'TN:started_freelancing': [\n    { action: 'Register with CNSS as self-employed', institution: 'CNSS', deadline_days_from_event: 30, form_available: true, severity: 'high' },\n    { action: 'Choose tax regime (forfaitaire vs reel)', institution: 'Direction Generale des Impots', deadline_days_from_event: 30, form_available: false, severity: 'high' },\n    { action: 'Notify bank of self-employed status for account type', institution: 'Bank', deadline_days_from_event: 60, form_available: false, severity: 'low' },\n  ],\n};\n\nconst cls = ($input.first().json.output) || {};\nconst form = $('Event Form').first().json;\nconst country = 'TN';\nconst eventType = String(cls.event_type || form['Event Type'] || '').trim();\nconst eventDateRaw = form['Event Date'] || (Array.isArray(cls.extracted_dates) && cls.extracted_dates[0]) || $today.toISODate();\nconst parsed = DateTime.fromISO(String(eventDateRaw));\nconst baseDate = parsed.isValid ? parsed : DateTime.now();\nconst eventId = country + '-' + (eventType || 'unknown') + '-' + Date.now();\n\nconst checklist = packs[country + ':' + eventType] || [];\n\nif (checklist.length === 0) {\n  return [{ json: {\n    pack_found: false,\n    event_id: eventId, event_type: eventType, country,\n    action: 'No jurisdiction pack found for this event type - manual review required',\n    institution: 'N/A',\n    deadline_date: baseDate.plus({ days: 14 }).toISODate(),\n    status: 'open', form_available: false, severity: 'medium',\n  } }];\n}\n\nconst rows = [];\nfor (const item of checklist) {\n  rows.push({ json: {\n    pack_found: true,\n    event_id: eventId,\n    event_type: eventType,\n    country,\n    action: item.action,\n    institution: item.institution,\n    deadline_date: baseDate.plus({ days: item.deadline_days_from_event }).toISODate(),\n    status: 'open',\n    form_available: item.form_available,\n    severity: item.severity,\n  } });\n}\nreturn rows;"
+      },
+      "id": "e82a69c8-b155-4f1c-81f8-b97d7414fd61",
+      "name": "Build Checklist",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        752,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "pack-found",
+              "leftValue": "={{ $json.pack_found }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b2b12427-1b50-4db3-ae1b-13c79787f18e",
+      "name": "Pack Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        976,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "9gsN0VQxNHSQKKTX",
+          "cachedResultName": "Compliance Checklist"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "event_id": "={{ $json.event_id }}",
+            "event_type": "={{ $json.event_type }}",
+            "country": "={{ $json.country }}",
+            "action": "={{ $json.action }}",
+            "institution": "={{ $json.institution }}",
+            "deadline_date": "={{ $json.deadline_date }}",
+            "status": "={{ $json.status }}",
+            "form_available": "={{ $json.form_available }}",
+            "severity": "={{ $json.severity }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "event_id",
+              "displayName": "event_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "event_type",
+              "displayName": "event_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "country",
+              "displayName": "country",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "action",
+              "displayName": "action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "institution",
+              "displayName": "institution",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "deadline_date",
+              "displayName": "deadline_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "form_available",
+              "displayName": "form_available",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "severity",
+              "displayName": "severity",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "last_reminder_sent",
+              "displayName": "last_reminder_sent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "53b50e1f-e5c7-4db4-afa4-7f307b5dfc7e",
+      "name": "Store Checklist",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        976,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "value": "ayarihaninhns@gmail.com",
+          "mode": "list",
+          "cachedResultName": "ayarihaninhns@gmail.com"
+        },
+        "start": "={{ $json.deadline_date }}",
+        "end": "={{ $json.deadline_date }}",
+        "useDefaultReminders": false,
+        "additionalFields": {
+          "allday": "yes",
+          "description": "=Compliance deadline\n\nAction: {{ $json.action }}\nInstitution: {{ $json.institution }}\nEvent type: {{ $json.event_type }}\nSeverity: {{ $json.severity }}\nForm available: {{ $json.form_available }}\nChecklist event ID: {{ $json.event_id }}",
+          "summary": "=[{{ $json.severity }}] {{ $json.action }} ({{ $json.institution }})"
+        },
+        "remindersUi": {
+          "remindersValues": [
+            {
+              "method": "popup",
+              "minutes": 20160
+            },
+            {
+              "method": "popup",
+              "minutes": 10080
+            },
+            {
+              "method": "popup",
+              "minutes": 1440
+            }
+          ]
+        }
+      },
+      "id": "05f54445-7a92-4ebb-bb1b-1c238701bef7",
+      "name": "Create Calendar Reminders",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        976,
+        496
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "HamDWzlcRYhEtiYK",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "ayarihaninhns@gmail.com",
+        "subject": "=Compliance assistant: no automated checklist for \"{{ $(\"Event Form\").item.json[\"Event Type\"] }}\"",
+        "emailType": "text",
+        "message": "=A reported life event was classified confidently but has no automated jurisdiction pack, so no checklist or calendar reminders were created.\n\nReported event type: {{ $(\"Event Form\").item.json[\"Event Type\"] }}\nEvent date: {{ $(\"Event Form\").item.json[\"Event Date\"] }}\nDetails: {{ $(\"Event Form\").item.json[\"Details\"] }}\n\nChecklist event ID: {{ $json.event_id }}\n\nPlease build the paperwork checklist for this event manually.",
+        "options": {}
+      },
+      "id": "985ccff8-6574-4205-afc3-c7b80599dd7f",
+      "name": "Notify: No Jurisdiction Pack",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1200,
+        352
+      ],
+      "webhookId": "8e97d361-df26-4485-a00b-b7ace3634264",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "2bMWS1ijwNThHdCZ",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Event Form": {
+      "main": [
+        [
+          {
+            "node": "Classify Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Event": {
+      "main": [
+        [
+          {
+            "node": "Needs Human Review?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classifier Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Classify Event",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classification Schema": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Classify Event",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs Human Review?": {
+      "main": [
+        [
+          {
+            "node": "Notify: Needs Your Input",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Checklist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Checklist": {
+      "main": [
+        [
+          {
+            "node": "Pack Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pack Found?": {
+      "main": [
+        [
+          {
+            "node": "Store Checklist",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create Calendar Reminders",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify: No Jurisdiction Pack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "3387f3dc-061d-45fd-85f5-070373226117",
+  "meta": {
+    "instanceId": "f7d23868faf058f8d6bced1ebde725dc5dcb217ed2417773962d01e1a2f866ae"
+  },
+  "nodeGroups": [
+    {
+      "id": "33b950f5-a75b-4b0b-94da-04159ccb1a69",
+      "name": "Classification",
+      "nodeIds": [
+        "e5139296-d631-4cc9-b0c0-c49e5ff50cf1",
+        "fb649df0-5c5e-48f5-816a-b839fc840f4f",
+        "bfb93fd7-4e48-4434-b013-ac9145e72b7b"
+      ],
+      "description": "AI classifies the reported event into a canonical event_type with confidence and extracted data."
+    },
+    {
+      "id": "82cceff8-71b0-4bc1-b7de-8d24e13ee9e2",
+      "name": "Human review guardrail",
+      "nodeIds": [
+        "e951f965-4aae-4604-b766-cc7c8c5edb63"
+      ],
+      "description": "Low-confidence or flagged events are emailed for manual review instead of auto-processing."
+    },
+    {
+      "id": "4e177714-a767-4641-becb-f2e07efe01cc",
+      "name": "Build & schedule",
+      "nodeIds": [
+        "e82a69c8-b155-4f1c-81f8-b97d7414fd61",
+        "b2b12427-1b50-4db3-ae1b-13c79787f18e",
+        "53b50e1f-e5c7-4db4-afa4-7f307b5dfc7e",
+        "05f54445-7a92-4ebb-bb1b-1c238701bef7",
+        "985ccff8-6574-4205-afc3-c7b80599dd7f"
+      ],
+      "description": "Loads the jurisdiction pack; events with a pack are stored and scheduled, events without one are emailed for manual checklist creation."
+    }
+  ],
+  "id": "pZEHSw2NrK5U6B3h",
+  "tags": []
+}
