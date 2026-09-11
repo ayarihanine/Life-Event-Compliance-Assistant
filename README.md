@@ -11,15 +11,15 @@
 
 Administrative compliance is often difficult because the triggering event is simple, while the follow-up work is fragmented across institutions, forms, deadlines, email, and personal calendars. A person may know that they started freelancing, moved address, had a child, lost a job, registered a business, experienced a bereavement, or needs to renew a visa, but still not know which organizations must be contacted, which documents are required, or when an action is due.
 
-The **Life-Event Compliance Assistant** provides a structured first layer for that problem. It accepts a life event through an n8n form, uses a Google Gemini model to normalize and classify the submission, applies a jurisdiction-specific checklist pack, records the resulting actions in an n8n Data Table, and creates all-day Google Calendar events for the calculated deadlines.
+**<u>The Life-Event Compliance Assistant provides a structured first layer for that problem.</u>** It accepts a life event through an n8n form, uses a Google Gemini model to normalize and classify the submission, applies a jurisdiction-specific checklist pack, records the resulting actions in an n8n Data Table, and creates all-day Google Calendar events for the calculated deadlines.
 
-The workflow is intentionally conservative. Low-confidence classifications and contradictory details are routed to human review instead of being processed automatically. Events without a matching jurisdiction pack are also reported for manual handling rather than silently producing an incomplete checklist.
+**<u>The workflow is intentionally conservative.</u>** Low-confidence classifications and contradictory details are routed to human review instead of being processed automatically. Events without a matching jurisdiction pack are also reported for manual handling rather than silently producing an incomplete checklist.
 
-This repository contains the workflow export and demonstration screenshots. It is not a standalone web application, legal-advice engine, or complete multi-country compliance database.
+**<u>This repository contains the workflow export and demonstration screenshots.</u>** It is not a standalone web application, legal-advice engine, or complete multi-country compliance database.
 
-## Why this system exists
+## **<u>Why this system exists</u>**
 
-The system is designed to reduce the operational gap between **recognizing a life event** and **completing the administrative actions that follow it**. Its value comes from connecting four activities that are commonly handled separately:
+**<u>The system is designed to reduce the operational gap between recognizing a life event and completing the administrative actions that follow it.</u>** Its value comes from connecting four activities that are commonly handled separately:
 
 | Problem | How the workflow responds |
 | --- | --- |
@@ -32,7 +32,7 @@ The system is designed to reduce the operational gap between **recognizing a lif
 
 The workflow is therefore best understood as a **compliance-intake and deadline-orchestration layer**. It does not replace an official institution, a qualified professional, or the user's own verification of current requirements.
 
-## What the workflow can do
+## **<u>What the workflow can do</u>**
 
 A user submits one of the configured event types through the n8n form. The current dropdown contains `started_freelancing`, `new_child`, `lost_job`, `moved_address`, `business_registered`, `family_member_deceased`, and `visa_renewal`. The form also captures an event date and accepts optional details such as names, reference numbers, or additional context.
 
@@ -50,7 +50,7 @@ Each action is stored as an individual checklist row. The same action is also cr
 
 If the classifier is uncertain or the details are self-contradictory, the workflow sends a human-review email. If the event is classified confidently but no jurisdiction pack exists, the workflow sends a separate coverage-gap notification and does not create an automated checklist or calendar events.
 
-## Architecture
+## **<u>Architecture</u>**
 
 The workflow is organized into three operational stages: intake and classification, guarded checklist generation, and persistence and reminders.
 
@@ -88,7 +88,7 @@ flowchart LR
 
 *The n8n canvas shows the complete control flow, including the human-review guardrail and the separate no-jurisdiction fallback.*
 
-## Screenshots and demonstrated behavior
+## **<u>Screenshots and demonstrated behavior</u>**
 
 ### Guided event intake and workflow execution
 
@@ -118,7 +118,7 @@ The workflow creates all-day calendar events for each deadline. The configured p
 
 *The second output view shows confirmed Google Calendar event records and their reminder overrides.*
 
-## Data model
+## **<u>Data model</u>**
 
 ### Classification result
 
@@ -153,15 +153,15 @@ The `Compliance Checklist` Data Table uses the following fields:
 | `severity` | String | Current values are `high`, `medium`, or `low`. |
 | `last_reminder_sent` | Date/time | Reserved for future reminder tracking and follow-up automation. |
 
-## Installation and setup
+## **<u>Installation and setup</u>**
 
-### Prerequisites
+### **<u>Prerequisites</u>**
 
-You need an n8n instance with permission to import and execute workflows. You also need credentials for Google Gemini, Gmail, and Google Calendar. The workflow uses n8n Data Tables, so the target instance must support Data Tables and allow the workflow to access the configured checklist table.
+**<u>You need an n8n instance with permission to import and execute workflows.</u>** You also need credentials for Google Gemini, Gmail, and Google Calendar. The workflow uses n8n Data Tables, so the target instance must support Data Tables and allow the workflow to access the configured checklist table.
 
-The exported workflow contains credential references from the author's n8n environment. Credential identifiers are instance-specific and should be replaced or remapped after import. Do not commit API keys, OAuth tokens, or private credential exports to this repository.
+The exported workflow contains credential references from the author's n8n environment. Credential identifiers are instance-specific and should be replaced or remapped after import. **<u>Do not commit API keys, OAuth tokens, or private credential exports to this repository.</u>**
 
-### Import the workflow
+### **<u>Import the workflow</u>**
 
 1. Download or clone this repository.
 2. Open your n8n workspace.
@@ -178,7 +178,7 @@ The exported workflow contains credential references from the author's n8n envir
 
 Create a Data Table with the fields shown in the data model above. The workflow inserts rows; it does not provide a complete lifecycle for updating an action to `completed`, rescheduling a deadline, or recording a sent reminder. Those capabilities can be added as later workflow stages.
 
-### Configure credentials
+### **<u>Configure credentials</u>**
 
 The imported nodes require three external integrations:
 
@@ -190,7 +190,7 @@ The imported nodes require three external integrations:
 
 Use OAuth or API credentials managed by n8n. Grant only the scopes required by the workflow and use a dedicated mailbox/calendar where possible. The workflow should be tested with data that does not contain unnecessary personal or confidential information.
 
-## Running the workflow
+## **<u>Running the workflow</u>**
 
 After the workflow is active, open the generated form URL or the configured n8n form endpoint. Select an event type, enter the event date, and add optional details when they improve the context. Submit the form once.
 
@@ -206,7 +206,7 @@ A representative test case for the current implementation is:
 
 The screenshots in this repository show a successful execution of that path. The dates displayed in the screenshots are execution data from the captured n8n run and are not a statement of current legal deadlines.
 
-## Extending the system
+## **<u>Extending the system</u>**
 
 ### Add a new jurisdiction or event pack
 
@@ -245,13 +245,13 @@ Add the new canonical value to the Event Form dropdown, update the classifier pr
 
 The current workflow creates open checklist rows and calendar reminders, but it does not provide a user-facing completion interface. A next iteration could add a status-update form, reminder deduplication, overdue notifications, document uploads, official source URLs, and a dashboard that groups actions by event or deadline.
 
-## Safety, privacy, and limitations
+## **<u>Safety, privacy, and limitations</u>**
 
-This workflow is an automation aid, not legal, tax, immigration, employment, medical, or financial advice. Compliance requirements can change, may depend on facts not captured by the form, and may differ by person, entity type, residency, or institution. Always verify important actions and deadlines with the relevant official institution or a qualified professional.
+**<u>This workflow is an automation aid, not legal, tax, immigration, employment, medical, or financial advice.</u>** Compliance requirements can change, may depend on facts not captured by the form, and may differ by person, entity type, residency, or institution. **<u>Always verify important actions and deadlines with the relevant official institution or a qualified professional.</u>**
 
 The AI step can misclassify ambiguous language, extract an incorrect date, or miss a relevant entity. The human-review branch reduces this risk but does not eliminate it. A high-confidence result is not proof that the underlying compliance interpretation is correct.
 
-The current jurisdiction coverage is intentionally narrow. The repository contains an implemented Tunisia (`TN`) pack for `started_freelancing`; the other form options are intake categories, not evidence that complete automated packs exist for them. Unsupported events are explicitly routed to manual review.
+**<u>The current jurisdiction coverage is intentionally narrow.</u>** The repository contains an implemented Tunisia (`TN`) pack for `started_freelancing`; the other form options are intake categories, not evidence that complete automated packs exist for them. Unsupported events are explicitly routed to manual review.
 
 The workflow handles personal event information and may send that information to the configured AI and email providers. Configure data retention, access control, credential scopes, and provider settings according to the sensitivity of the data and the requirements of the deployment environment. Use synthetic data while testing.
 
@@ -269,7 +269,7 @@ The workflow handles personal event information and may send that information to
 └── README.md                              # Project documentation
 ```
 
-## Troubleshooting
+## **<u>Troubleshooting</u>**
 
 | Symptom | Likely cause | Resolution |
 | --- | --- | --- |
@@ -281,13 +281,13 @@ The workflow handles personal event information and may send that information to
 | Notifications go to the wrong mailbox. | Imported Gmail nodes retain the original recipient. | Replace the recipient in both notification nodes before activation. |
 | Dates appear unexpected. | The workflow calculates deadlines from the submitted event date and the n8n date/time context. | Check the submitted date, timezone, and the deadline offset configured in the pack. |
 
-## Contributing
+## **<u>Contributing</u>**
 
 Contributions should keep the workflow safe, explicit, and reviewable. When adding a jurisdiction pack, include the jurisdiction and event key, the source and effective date of each requirement, the deadline assumptions, and a test execution or screenshot. Avoid embedding secrets or private credentials in workflow exports.
 
 For larger changes, describe the intended behavior, the human-review implications, and how unsupported or contradictory input is handled. Changes that broaden automated compliance coverage should receive subject-matter review before production use.
 
-## License
+## **<u>License</u>**
 
 No license file is currently included in this repository. Until a license is added, treat the workflow and its accompanying assets as **all rights reserved** and request permission before redistributing or incorporating them into another project.
 
